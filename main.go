@@ -91,7 +91,7 @@ seed("test-db", "test-db-user", "changeit");
 
 func generateDocker(dir string) {
 	base := filepath.Base(dir)
-	docker := fmt.Sprintf(`FROM golang:1.22.5-alpine
+	docker := fmt.Sprintf(`FROM golang:1.25.5-alpine
 
 RUN adduser --disabled-password --gecos '' gouser
 
@@ -129,7 +129,7 @@ CMD ["./build/server"]
       - redis
 
   mongo:
-    image: mongo:7.0.12
+    image: mongo:8.0.9
     container_name: mongo
     restart: unless-stopped
     env_file: .env
@@ -145,7 +145,7 @@ CMD ["./build/server"]
       - dbdata:/data/db
 
   redis:
-    image: redis:7.2.5
+    image: redis:8.0.0
     container_name: redis
     restart: unless-stopped
     env_file: .env
@@ -244,7 +244,7 @@ func generateStartup(module, dir, feature string) {
 	indexes := fmt.Sprintf(`package startup
 
 import (
-	"github.com/unusualcodeorg/goserve/arch/mongo"
+	"github.com/afteracademy/goserve/arch/mongo"
 	%sModel "%s/api/sample/model"
 )
 
@@ -258,10 +258,10 @@ func EnsureDbIndexes(db mongo.Database) {
 import (
 	"context"
 
-	coreMW "github.com/unusualcodeorg/goserve/arch/middleware"
-	"github.com/unusualcodeorg/goserve/arch/mongo"
-	"github.com/unusualcodeorg/goserve/arch/network"
-	"github.com/unusualcodeorg/goserve/arch/redis"
+	coreMW "github.com/afteracademy/goserve/arch/middleware"
+	"github.com/afteracademy/goserve/arch/mongo"
+	"github.com/afteracademy/goserve/arch/network"
+	"github.com/afteracademy/goserve/arch/redis"
 	"%s/api/sample"
 	"%s/config"
 )
@@ -319,9 +319,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/unusualcodeorg/goserve/arch/mongo"
-	"github.com/unusualcodeorg/goserve/arch/network"
-	"github.com/unusualcodeorg/goserve/arch/redis"
+	"github.com/afteracademy/goserve/arch/mongo"
+	"github.com/afteracademy/goserve/arch/network"
+	"github.com/afteracademy/goserve/arch/redis"
 	"%s/config"
 )
 
@@ -386,7 +386,7 @@ func create(env *config.Env) (network.Router, Module, Shutdown) {
 import (
 	"net/http/httptest"
 
-	"github.com/unusualcodeorg/goserve/arch/network"
+	"github.com/afteracademy/goserve/arch/network"
 	"%s/config"
 )
 
@@ -519,7 +519,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/unusualcodeorg/goserve/arch/mongo"
+	"github.com/afteracademy/goserve/arch/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	mongod "go.mongodb.org/mongo-driver/mongo"
@@ -587,9 +587,9 @@ func generateService(module, featureDir, featureName string) error {
 import (
   "%s/api/%s/dto"
 	"%s/api/%s/model"
-	"github.com/unusualcodeorg/goserve/arch/mongo"
-	"github.com/unusualcodeorg/goserve/arch/network"
-	"github.com/unusualcodeorg/goserve/arch/redis"
+	"github.com/afteracademy/goserve/arch/mongo"
+	"github.com/afteracademy/goserve/arch/network"
+	"github.com/afteracademy/goserve/arch/redis"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -637,8 +637,8 @@ func generateController(module, featureDir, featureName string) error {
 import (
 	"github.com/gin-gonic/gin"
 	"%s/api/%s/dto"
-	coredto "github.com/unusualcodeorg/goserve/arch/dto"
-	"github.com/unusualcodeorg/goserve/arch/network"
+	coredto "github.com/afteracademy/goserve/arch/dto"
+	"github.com/afteracademy/goserve/arch/network"
 	"%s/utils"
 )
 
@@ -907,8 +907,8 @@ REDIS_PASSWORD=changeit
 ACCESS_TOKEN_VALIDITY_SEC=172800
 # 7 DAYS: 604800 Sec
 REFRESH_TOKEN_VALIDITY_SEC=604800
-TOKEN_ISSUER=api.goserve.unusualcode.org
-TOKEN_AUDIENCE=goserve.unusualcode.org
+TOKEN_ISSUER=api.goserve.afteracademy.com
+TOKEN_AUDIENCE=goserve.afteracademy.com
 
 RSA_PRIVATE_KEY_PATH="keys/private.pem"
 RSA_PUBLIC_KEY_PATH="keys/public.pem"
@@ -942,8 +942,8 @@ REDIS_PASSWORD=changeit
 ACCESS_TOKEN_VALIDITY_SEC=172800
 # 7 DAYS: 604800 Sec
 REFRESH_TOKEN_VALIDITY_SEC=604800
-TOKEN_ISSUER=api.goserve.unusualcode.org
-TOKEN_AUDIENCE=goserve.unusualcode.org
+TOKEN_ISSUER=api.goserve.afteracademy.com
+TOKEN_AUDIENCE=goserve.afteracademy.com
 
 RSA_PRIVATE_KEY_PATH="../keys/private.pem"
 RSA_PUBLIC_KEY_PATH="../keys/public.pem"
@@ -956,14 +956,14 @@ RSA_PUBLIC_KEY_PATH="../keys/public.pem"
 func generateGoMod(module, dir string) {
 	goMod := `module %s
 
-go 1.22.5
+go 1.25.5
 
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/spf13/viper v1.19.0
-	github.com/unusualcodeorg/goserve v1.1.9
+	github.com/afteracademy/goserve v1.1.9
 	go.mongodb.org/mongo-driver v1.15.1
 )
 
@@ -1027,14 +1027,14 @@ require (
 
 	goSum := `module %s
 
-go 1.22.5
+go 1.25.5
 
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/spf13/viper v1.19.0
-	github.com/unusualcodeorg/goserve v1.1.9
+	github.com/afteracademy/goserve v1.1.9
 	go.mongodb.org/mongo-driver v1.15.1
 )
 

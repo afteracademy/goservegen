@@ -1,12 +1,12 @@
 # goservegen - Go Backend Architecture Generator using goserve framework
-[![Download](https://img.shields.io/badge/Download-Starter%20Project%20Zip-green.svg)](https://github.com/unusualcodeorg/goservegen/raw/main/project.zip)
+[![Download](https://img.shields.io/badge/Download-Starter%20Project%20Zip-green.svg)](https://github.com/afteracademy/goservegen/raw/main/project.zip)
 
 Project generator for go backend architecture using goserve framework
 
-Check out goserve framework [github.com/unusualcodeorg/goserve](https://github.com/unusualcodeorg/goserve)
+Check out goserve framework [github.com/afteracademy/goserve](https://github.com/afteracademy/goserve)
 
 ## How To Use goservegen
-1. Download the goservegen binary for your operating system from the goservegen latest release: [github.com/unusualcodeorg/goservegen/releases](https://github.com/unusualcodeorg/goservegen/releases)
+1. Download the goservegen binary for your operating system from the goservegen latest release: [github.com/afteracademy/goservegen/releases](https://github.com/afteracademy/goservegen/releases)
 
 2. Expand the compressed file (Example: Apple Mac M2: goservegen_Darwin_arm64.tar.gz)
 
@@ -63,7 +63,7 @@ cd ~/Downloads/goservegen_Darwin_arm64
 
 ## Run the project using Docker
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 #### Check the API
 ```cURL
@@ -79,7 +79,7 @@ Response
 ```
 
 ## Working on the project
-You can read about using this framework here [github.com/unusualcodeorg/goserve](https://github.com/unusualcodeorg/goserve)
+You can read about using this framework here [github.com/afteracademy/goserve](https://github.com/afteracademy/goserve)
 
 ## Read the Article to understand this project
 [How to Architect Good Go Backend REST API Services](https://medium.com/@janishar.ali/how-to-architecture-good-go-backend-rest-api-services-14cc4730c05b)
