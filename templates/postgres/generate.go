@@ -238,7 +238,7 @@ func (m *module) GetInstance() *module {
 
 func (m *module) Controllers() []network.Controller {
 	return []network.Controller{
-		%s.NewController(m.AuthenticationProvider(), m.AuthorizationProvider(), %s.NewService(m.DB, m.Store)),
+		%s.NewController(m.AuthenticationProvider(), m.AuthorizationProvider(), %s.NewService(m.DB.Pool(), m.Store)),
 	}
 }
 
@@ -275,7 +275,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/afteracademy/goserve/v2/postgres"
 	"github.com/afteracademy/goserve/v2/network"
 	"github.com/afteracademy/goserve/v2/redis"
@@ -307,10 +306,6 @@ func create(env *config.Env) (network.Router, Module, Shutdown) {
 
 	db := postgres.NewDatabase(context, dbConfig)
 	db.Connect()
-
-	if env.GoMode != gin.TestMode {
-		EnsureDbIndexes(db)
-	}
 
 	redisConfig := redis.Config{
 		Host: env.RedisHost,
