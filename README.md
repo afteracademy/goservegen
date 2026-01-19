@@ -1,11 +1,24 @@
 # goservegen - Go Backend Architecture Generator using goserve framework
-[![Download](https://img.shields.io/badge/Download-Starter%20Project%20Zip-green.svg)](https://github.com/afteracademy/goservegen/raw/main/project.zip)
+[![Download](https://img.shields.io/badge/Download-Starter%20Project%20Mongo%20Zip-green.svg)](https://github.com/afteracademy/goservegen/raw/main/starter-project-mongo.zip)
+[![Download](https://img.shields.io/badge/Download-Starter%20Project%20Postgres%20Zip-green.svg)](https://github.com/afteracademy/goservegen/raw/main/starter-project-postgres.zip)
 
 Project generator for go backend architecture using goserve framework
 
-Check out goserve framework [github.com/afteracademy/goserve](https://github.com/afteracademy/goserve)
+## See more on goserve framework
+[github.com/afteracademy/goserve](https://github.com/afteracademy/goserve)
+
+## Check the example project built using goservegen
+1. [goserve-example-api-server-mongo](https://github.com/afteracademy/goserve-example-api-server-mongo)
+
+2. [goserve-example-api-server-postgres](https://github.com/afteracademy/goserve-example-api-server-postgres)
 
 ## How To Use goservegen
+
+### A. Either You can download the starter projects here
+1. [Starter Project Mongo Zip](https://github.com/afteracademy/goservegen/raw/main/starter-project-mongo.zip)
+2. [Starter Project Postgres Zip](https://github.com/afteracademy/goservegen/raw/main/starter-project-postgres.zip)	
+
+### B. Or You can use goservegen binary to generate the project
 1. Download the goservegen binary for your operating system from the goservegen latest release: [github.com/afteracademy/goservegen/releases](https://github.com/afteracademy/goservegen/releases)
 
 2. Expand the compressed file (Example: Apple Mac M2: goservegen_Darwin_arm64.tar.gz)
@@ -14,8 +27,8 @@ Check out goserve framework [github.com/afteracademy/goserve](https://github.com
 ```bash
 cd ~/Downloads/goservegen_Darwin_arm64
 
-# ./goservegen [project directory path] [project module]
-./goservegen ~/Downloads/example github.com/yourusername/example
+# ./goservegen [project directory path] [project module] [Database Type - mongo/postgres]
+./goservegen ~/Downloads/example github.com/yourusername/example postgres
 ```
 > Note: `./goservegen ~/Downloads/example github.com/yourusername/example` will generate project named `example` located at `~/Downloads` and module `github.com/yourusername/example`
 
@@ -65,10 +78,7 @@ cd ~/Downloads/goservegen_Darwin_arm64
 ```bash
 docker compose up --build
 ```
-#### Check the API
-```cURL
-curl --location 'http://localhost:8080/sample/ping'
-```
+
 Response
 ```
 {
