@@ -36,42 +36,68 @@ cd ~/Downloads/goservegen_Darwin_arm64
 
 5. Have fun developing your REST API server!
 
-## Generated Project
+## Generated Postgres Project
 ```
 .
-├── .extra
-│   └── setup
-│       └── init-mongo.js
-├── api
-│   └── sample
-│       ├── dto
-│       │   └── create_sample.go
-│       ├── model
-│       │   └── sample.go
-│       ├── controller.go
-│       └── service.go
-├── cmd
-│   └── main.go
-├── config
-│   └── env.go
-├── keys
-│   ├── private.pem
-│   └── public.pem
-├── startup
-│   ├── indexes.go
-│   ├── module.go
-│   ├── server.go
-│   └── testserver.go
-├── utils
-│   └── convertor.go
-├── .env
-├── .test.env
-├── .gitignore
-├── .dockerignore
 ├── Dockerfile
+├── api
+│   └── message
+│       ├── controller.go
+│       ├── dto
+│       │   └── create_message.go
+│       ├── model
+│       │   └── message.go
+│       └── service.go
+├── cmd
+│   └── main.go
+├── config
+│   └── env.go
 ├── docker-compose.yml
 ├── go.mod
-└── go.sum
+├── go.sum
+├── keys
+│   ├── private.pem
+│   └── public.pem
+├── migrations
+├── startup
+│   ├── module.go
+│   ├── server.go
+│   └── testserver.go
+└── utils
+    ├── convertor.go
+    └── file.go
+```
+
+## Generated Mongo Project
+```
+.
+├── Dockerfile
+├── api
+│   └── message
+│       ├── controller.go
+│       ├── dto
+│       │   └── create_message.go
+│       ├── model
+│       │   └── message.go
+│       └── service.go
+├── cmd
+│   └── main.go
+├── config
+│   └── env.go
+├── docker-compose.yml
+├── go.mod
+├── go.sum
+├── keys
+│   ├── private.pem
+│   └── public.pem
+├── startup
+│   ├── indexes.go
+│   ├── module.go
+│   ├── server.go
+│   └── testserver.go
+└── utils
+    ├── convertor.go
+    └── file.go
 ```
 
 ## Run the project using Docker
