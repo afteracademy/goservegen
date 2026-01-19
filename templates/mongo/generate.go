@@ -1,78 +1,33 @@
-package templates
+package mongo
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/afteracademy/goservegen/templates"
 )
 
-func Generate() {
-	if len(os.Args) < 2 {
-		log.Fatalln("project name is required")
-	}
-
-	if len(os.Args[1]) == 0 {
-		log.Fatalln("project name should be non-empty string")
-	}
-
-	if len(os.Args) < 3 {
-		log.Fatalln("project module name is required")
-	}
-
-	if len(os.Args[2]) == 0 {
-		log.Fatalln("project name should be non-empty string")
-	}
-
-	dir := os.Args[1]
-	module := os.Args[2]
-
-	createDir(dir)
-	generateGoMod(module, dir)
-	generateEnvs(dir)
-	generateIgnores(dir)
-	generateUtils(dir)
-	generateConfig(dir)
-	generateRSAKeyPair(dir)
+func Generate(dir string, module string) {
+	templates.CreateDir(dir)
+	templates.GenerateGoMod(module, dir)
+	templates.GenerateIgnores(dir)
+	templates.GenerateUtils(dir)
+	templates.GenerateConfig(dir)
+	templates.GenerateRSAKeyPair(dir)
+	templates.GenerateCmd(module, dir)
 	generateApi(module, dir, "message")
 	generateStartup(module, dir, "message")
-	generateCmd(module, dir)
+	generateEnvs(dir)
 	generateMongoInit(dir)
 	generateDocker(dir)
-	executeTidy(dir)
-}
-
-func createDir(dir string) {
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		log.Fatalf("error creating directory: %s", dir)
-	}
-}
-
-func createFile(file, content string) {
-	if err := os.WriteFile(file, []byte(content), os.ModePerm); err != nil {
-		log.Fatalf("error creating file: %s", file)
-	}
-}
-
-func executeTidy(dir string) {
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = dir
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("Command execution failed: %v\nOutput: %s", err, string(output))
-	}
+	templates.ExecuteTidy(dir)
 }
 
 func generateMongoInit(dir string) {
 	d := filepath.Join(dir, ".extra", "setup")
-	createDir(d)
+	templates.CreateDir(d)
 
 	initMongo := `function seed(dbName, user, password) {
   db = db.getSiblingDB(dbName);
@@ -86,12 +41,12 @@ func generateMongoInit(dir string) {
 seed("dev-db", "dev-db-user", "changeit");
 seed("test-db", "test-db-user", "changeit");
 `
-	createFile(filepath.Join(d, "init-mongo.js"), initMongo)
+	templates.CreateFile(filepath.Join(d, "init-mongo.js"), initMongo)
 }
 
 func generateDocker(dir string) {
 	base := filepath.Base(dir)
-	docker := fmt.Sprintf(`FROM golang:1.25.5-alpine
+	docker := fmt.Sprintf(`FROM golang:`+templates.GO_VERSION+`-alpine
 
 RUN adduser --disabled-password --gecos '' gouser
 
@@ -216,30 +171,14 @@ go.sum
 logs/
 *.md
 `
-	createFile(filepath.Join(dir, "Dockerfile"), docker)
-	createFile(filepath.Join(dir, "docker-compose.yml"), compose)
-	createFile(filepath.Join(dir, ".dockerignore"), ignore)
-}
-
-func generateCmd(module, dir string) {
-	d := filepath.Join(dir, "cmd")
-	createDir(d)
-
-	m := fmt.Sprintf(`package main
-
-import "%s/startup"
-
-func main() {
-	startup.Server()
-}
-`, module)
-
-	createFile(filepath.Join(d, "main.go"), m)
+	templates.CreateFile(filepath.Join(dir, "Dockerfile"), docker)
+	templates.CreateFile(filepath.Join(dir, "docker-compose.yml"), compose)
+	templates.CreateFile(filepath.Join(dir, ".dockerignore"), ignore)
 }
 
 func generateStartup(module, dir, feature string) {
 	d := filepath.Join(dir, "startup")
-	createDir(d)
+	templates.CreateDir(d)
 	featureCaps := capitalizeFirstLetter(feature)
 
 	indexes := fmt.Sprintf(`package startup
@@ -405,15 +344,15 @@ func TestServer() (network.Router, Module, Teardown) {
 }
 `, module)
 
-	createFile(filepath.Join(d, "indexes.go"), indexes)
-	createFile(filepath.Join(d, "module.go"), mdl)
-	createFile(filepath.Join(d, "server.go"), server)
-	createFile(filepath.Join(d, "testserver.go"), testServer)
+	templates.CreateFile(filepath.Join(d, "indexes.go"), indexes)
+	templates.CreateFile(filepath.Join(d, "module.go"), mdl)
+	templates.CreateFile(filepath.Join(d, "server.go"), server)
+	templates.CreateFile(filepath.Join(d, "testserver.go"), testServer)
 }
 
 func generateApi(module, dir, feature string) {
 	d := filepath.Join(dir, "api")
-	createDir(d)
+	templates.CreateDir(d)
 	generateApiFeature(module, d, feature)
 }
 
@@ -684,228 +623,8 @@ func (c *controller) get%sHandler(ctx *gin.Context) {
 	return os.WriteFile(controllerPath, []byte(template), os.ModePerm)
 }
 
-func generateRSAKeyPair(dir string) error {
-	d := filepath.Join(dir, "keys")
-	createDir(d)
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return err
-	}
-	if err := privateKey.Validate(); err != nil {
-		return err
-	}
-
-	privatePemBlock := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	}
-
-	private, err := os.Create(filepath.Join(dir, "keys", "private.pem"))
-	if err != nil {
-		return err
-	}
-	defer private.Close()
-
-	if err := pem.Encode(private, privatePemBlock); err != nil {
-		return err
-	}
-
-	derBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return err
-	}
-
-	publicPemBlock := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: derBytes,
-	}
-
-	public, err := os.Create(filepath.Join(dir, "keys", "public.pem"))
-	if err != nil {
-		return err
-	}
-	defer public.Close()
-
-	if err := pem.Encode(public, publicPemBlock); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func generateConfig(dir string) {
-	env := `package config
-
-import (
-	"log"
-
-	"github.com/spf13/viper"
-)
-
-type Env struct {
-	// server
-	GoMode     string ` + "`" + `mapstructure:"GO_MODE"` + "`" + `
-	ServerHost string ` + "`" + `mapstructure:"SERVER_HOST"` + "`" + `
-	ServerPort uint16 ` + "`" + `mapstructure:"SERVER_PORT"` + "`" + `
-	// database
-	DBHost         string ` + "`" + `mapstructure:"DB_HOST"` + "`" + `
-	DBName         string ` + "`" + `mapstructure:"DB_NAME"` + "`" + `
-	DBPort         uint16 ` + "`" + `mapstructure:"DB_PORT"` + "`" + `
-	DBUser         string ` + "`" + `mapstructure:"DB_USER"` + "`" + `
-	DBUserPwd      string ` + "`" + `mapstructure:"DB_USER_PWD"` + "`" + `
-	DBMinPoolSize  uint16 ` + "`" + `mapstructure:"DB_MIN_POOL_SIZE"` + "`" + `
-	DBMaxPoolSize  uint16 ` + "`" + `mapstructure:"DB_MAX_POOL_SIZE"` + "`" + `
-	DBQueryTimeout uint16 ` + "`" + `mapstructure:"DB_QUERY_TIMEOUT_SEC"` + "`" + `
-	// redis
-	RedisHost string ` + "`" + `mapstructure:"REDIS_HOST"` + "`" + `
-	RedisPort uint16 ` + "`" + `mapstructure:"REDIS_PORT"` + "`" + `
-	RedisPwd  string ` + "`" + `mapstructure:"REDIS_PASSWORD"` + "`" + `
-	RedisDB   int    ` + "`" + `mapstructure:"REDIS_DB"` + "`" + `
-	// keys
-	RSAPrivateKeyPath string ` + "`" + `mapstructure:"RSA_PRIVATE_KEY_PATH"` + "`" + `
-	RSAPublicKeyPath  string ` + "`" + `mapstructure:"RSA_PUBLIC_KEY_PATH"` + "`" + `
-	// Token
-	AccessTokenValiditySec  uint64 ` + "`" + `mapstructure:"ACCESS_TOKEN_VALIDITY_SEC"` + "`" + `
-	RefreshTokenValiditySec uint64 ` + "`" + `mapstructure:"REFRESH_TOKEN_VALIDITY_SEC"` + "`" + `
-	TokenIssuer             string ` + "`" + `mapstructure:"TOKEN_ISSUER"` + "`" + `
-	TokenAudience           string ` + "`" + `mapstructure:"TOKEN_AUDIENCE"` + "`" + `
-}
-
-func NewEnv(filename string, override bool) *Env {
-	env := Env{}
-	viper.SetConfigFile(filename)
-
-	if override {
-		viper.AutomaticEnv()
-	}
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatal("Error reading environment file", err)
-	}
-
-	err = viper.Unmarshal(&env)
-	if err != nil {
-		log.Fatal("Error loading environment file", err)
-	}
-
-	return &env
-}
-`
-	d := filepath.Join(dir, "config")
-	createDir(d)
-	createFile(filepath.Join(d, "env.go"), env)
-}
-
-func generateUtils(dir string) {
-	convertor := `package utils
-
-import (
-	"strconv"
-	"strings"
-)
-
-func ConvertUint16(str string) uint16 {
-	u, err := strconv.ParseUint(str, 10, 16)
-	if err != nil {
-		return 0
-	}
-	return uint16(u)
-}
-
-func ConvertUint8(str string) uint8 {
-	u, err := strconv.ParseUint(str, 10, 8)
-	if err != nil {
-		return 0
-	}
-	return uint8(u)
-}
-
-func ExtractBearerToken(authHeader string) string {
-	const prefix = "Bearer "
-	tokenIndex := strings.Index(authHeader, prefix)
-	if tokenIndex == -1 || tokenIndex != 0 {
-		return ""
-	}
-	return authHeader[tokenIndex+len(prefix):]
-}
-
-func FormatEndpoint(endpoint string) string {
-	endpoint = strings.ReplaceAll(endpoint, " ", "")
-	endpoint = strings.ReplaceAll(endpoint, "/", "-")
-	endpoint = strings.ReplaceAll(endpoint, "?", "")
-	return endpoint
-}
-`
-
-	file := `package utils
-
-import "os"
-
-func LoadPEMFileInto(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-`
-
-	d := filepath.Join(dir, "utils")
-	createDir(d)
-	createFile(filepath.Join(d, "convertor.go"), convertor)
-	createFile(filepath.Join(d, "file.go"), file)
-}
-
-func generateIgnores(dir string) {
-	gitignore := `
- # If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-.DS_Store
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with ` + "`" + `go test -c` + "`" + `
-*.test
-!Dockerfile.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# Environment varibles
-*.env
-*.env.test
-
-#keys
-keys/*
-!keys/*.md
-!keys/*.txt
-*.pem
-
-__debug*
-
-build
- `
-	createFile(filepath.Join(dir, ".gitignore"), gitignore)
-}
-
 func generateEnvs(dir string) {
-	env := `
-# debug, release, test
+	env := `# debug, release, test
 GO_MODE=debug
 
 SERVER_HOST=0.0.0.0
@@ -913,8 +632,8 @@ SERVER_PORT=8080
 
 DB_HOST=mongo
 DB_PORT=27017
-DB_NAME=goserver-dev-db
-DB_USER=goserver-dev-db-user
+DB_NAME=dev-db
+DB_USER=dev-db-user
 DB_USER_PWD=changeit
 DB_MIN_POOL_SIZE=2
 DB_MAX_POOL_SIZE=5
@@ -937,14 +656,13 @@ RSA_PRIVATE_KEY_PATH="keys/private.pem"
 RSA_PUBLIC_KEY_PATH="keys/public.pem"
 `
 
-	testEnv := `
-# debug, release, test
+	testEnv := `# debug, release, test
 GO_MODE=test
 
 DB_HOST=mongo
 DB_PORT=27017
-DB_NAME=goserver-test-db
-DB_USER=goserver-test-db-user
+DB_NAME=test-db
+DB_USER=test-db-user
 DB_USER_PWD=changeit
 DB_MIN_POOL_SIZE=2
 DB_MAX_POOL_SIZE=5
@@ -967,16 +685,6 @@ RSA_PRIVATE_KEY_PATH="../keys/private.pem"
 RSA_PUBLIC_KEY_PATH="../keys/public.pem"
 `
 
-	createFile(filepath.Join(dir, ".env"), env)
-	createFile(filepath.Join(dir, ".test.env"), testEnv)
-}
-
-func generateGoMod(module, dir string) {
-	goMod := `module %s
-
-go 1.25.5
-
-`
-
-	createFile(filepath.Join(dir, "go.mod"), fmt.Sprintf(goMod, module))
+	templates.CreateFile(filepath.Join(dir, ".env"), env)
+	templates.CreateFile(filepath.Join(dir, ".test.env"), testEnv)
 }
