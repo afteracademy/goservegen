@@ -401,9 +401,7 @@ func generateDto(featureDir, featureName string) error {
 import (
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"github.com/afteracademy/goserve/v2/utility"
 )
 
 type Info%s struct {
@@ -411,20 +409,8 @@ type Info%s struct {
 	Field     string             ` + "`" + `json:"field" binding:"required"` + "`" + `
 	CreatedAt time.Time          ` + "`" + `json:"createdAt" binding:"required"` + "`" + `
 }
-
-func EmptyInfo%s() *Info%s {
-	return &Info%s{}
-}
-
-func (d *Info%s) GetValue() *Info%s {
-	return d
-}
-
-func (d *Info%s) ValidateErrors(errs validator.ValidationErrors) ([]string, error) {
-	return utility.FormatValidationErrors(errs), nil
-}
 `
-	template := fmt.Sprintf(tStr, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps)
+	template := fmt.Sprintf(tStr, featureCaps)
 
 	return os.WriteFile(dtoPath, []byte(template), os.ModePerm)
 }
@@ -476,10 +462,6 @@ func New%s(field string) (*%s, error) {
 	return &doc, nil
 }
 
-func (doc *%s) GetValue() *%s {
-	return doc
-}
-
 func (doc *%s) Validate() error {
 	validate := validator.New()
 	return validate.Struct(doc)
@@ -499,7 +481,7 @@ func (*%s) EnsureIndexes(db mongo.Database) {
 }
 
 `
-	template := fmt.Sprintf(tStr, featureLower, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps)
+	template := fmt.Sprintf(tStr, featureLower, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps)
 
 	return os.WriteFile(modelPath, []byte(template), os.ModePerm)
 }
@@ -515,7 +497,6 @@ import (
   "%s/api/%s/dto"
 	"%s/api/%s/model"
 	"github.com/afteracademy/goserve/v2/mongo"
-	"github.com/afteracademy/goserve/v2/network"
 	"github.com/afteracademy/goserve/v2/redis"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -526,14 +507,12 @@ type Service interface {
 }
 
 type service struct {
-	network.BaseService
 	%sQueryBuilder mongo.QueryBuilder[model.%s]
 	info%sCache    redis.Cache[dto.Info%s]
 }
 
 func NewService(db mongo.Database, store redis.Store) Service {
 	return &service{
-		BaseService:  network.NewBaseService(),
 		%sQueryBuilder: mongo.NewQueryBuilder[model.%s](db, model.CollectionName),
 		info%sCache: redis.NewCache[dto.Info%s](store),
 	}
@@ -570,7 +549,7 @@ import (
 )
 
 type controller struct {
-	network.BaseController
+	network.Controller
 	service Service
 }
 
@@ -580,7 +559,7 @@ func NewController(
 	service Service,
 ) network.Controller {
 	return &controller{
-		BaseController: network.NewBaseController("/%s", authMFunc, authorizeMFunc),
+		Controller: network.NewController("/%s", authMFunc, authorizeMFunc),
 		service:  service,
 	}
 }
@@ -590,33 +569,25 @@ func (c *controller) MountRoutes(group *gin.RouterGroup) {
 }
 
 func (c *controller) get%sHandler(ctx *gin.Context) {
-	mongoId, err := network.ReqParams(ctx, coredto.EmptyMongoId())
+	mongoId, err := network.ReqParams[coredto.MongoId](ctx)
 	if err != nil {
-		// TODO
-		// Do check https://github.com/afteracademy/goserve-example-api-server-mongo/blob/main/api/contact/controller.go
-		// to know how to handle response properly 
+		network.SendBadRequestError(ctx, err.Error(), err)
 		return
 	}
 
 	%s, err := c.service.Find%s(mongoId.ID)
 	if err != nil {
-		// TODO
-		// Do check https://github.com/afteracademy/goserve-example-api-server-mongo/blob/main/api/contact/controller.go
-		// to know how to handle response properly 
+		network.SendBadRequestError(ctx, err.Error(), err)
 		return
 	}
 
 	data, err := utility.MapTo[dto.Info%s](%s)
 	if data == nil || err != nil {
-		// TODO
-		// Do check https://github.com/afteracademy/goserve-example-api-server-mongo/blob/main/api/contact/controller.go
-		// to know how to handle response properly 
+		network.SendBadRequestError(ctx, err.Error(), err)
 		return
 	}
 
-	// TODO
-	// Do check https://github.com/afteracademy/goserve-example-api-server-mongo/blob/main/common/payload.go
-	// to know how to handle response properly 
+	network.SendSuccessDataResponse(ctx, "success", data)
 }
 `, featureName, module, featureLower, featureLower, featureCaps, featureCaps, featureLower, featureCaps, featureCaps, featureLower)
 

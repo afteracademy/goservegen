@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 )
 
-const GO_VERSION = "1.25.5"
+const GO_VERSION = "1.25.6"
 
 func CreateDir(dir string) {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {

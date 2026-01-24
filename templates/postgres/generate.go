@@ -238,7 +238,7 @@ func (m *module) GetInstance() *module {
 
 func (m *module) Controllers() []network.Controller {
 	return []network.Controller{
-		%s.NewController(m.AuthenticationProvider(), m.AuthorizationProvider(), %s.NewService(m.DB.Pool(), m.Store)),
+		%s.NewController(m.AuthenticationProvider(), m.AuthorizationProvider(), %s.NewService(m.DB, m.Store)),
 	}
 }
 
@@ -412,9 +412,7 @@ func generateDto(featureDir, featureName string) error {
 import (
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/afteracademy/goserve/v2/utility"
 )
 
 type Info%s struct {
@@ -422,20 +420,8 @@ type Info%s struct {
 	Field     string    ` + "`" + `json:"field" binding:"required"` + "`" + `
 	CreatedAt time.Time ` + "`" + `json:"createdAt" binding:"required"` + "`" + `
 }
-
-func EmptyInfo%s() *Info%s {
-	return &Info%s{}
-}
-
-func (d *Info%s) GetValue() *Info%s {
-	return d
-}
-
-func (d *Info%s) ValidateErrors(errs validator.ValidationErrors) ([]string, error) {
-	return utility.FormatValidationErrors(errs), nil
-}
 `
-	template := fmt.Sprintf(tStr, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps, featureCaps)
+	template := fmt.Sprintf(tStr, featureCaps)
 
 	return os.WriteFile(dtoPath, []byte(template), os.ModePerm)
 }
@@ -483,10 +469,9 @@ import (
   "%s/api/%s/dto"
 	"%s/api/%s/model"
 
-	"github.com/afteracademy/goserve/v2/network"
 	"github.com/afteracademy/goserve/v2/redis"
+	"github.com/afteracademy/goserve/v2/postgres"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service interface {
@@ -494,14 +479,12 @@ type Service interface {
 }
 
 type service struct {
-	network.BaseService
-	db          *pgxpool.Pool
+	db          postgres.Database
 	info%sCache redis.Cache[dto.Info%s]
 }
 
-func NewService(db *pgxpool.Pool, store redis.Store) Service {
+func NewService(db postgres.Database, store redis.Store) Service {
 	return &service{
-		BaseService: network.NewBaseService(),
 		db:          db,
 		info%sCache: redis.NewCache[dto.Info%s](store),
 	}
@@ -523,7 +506,7 @@ func (s *service) Find%s(id uuid.UUID) (*model.%s, error) {
 
 	var m model.%s
 
-	err := s.db.QueryRow(ctx, query, id).
+	err := s.db.Pool().QueryRow(ctx, query, id).
 		Scan(
 			&m.ID,
 			&m.Field,
@@ -559,7 +542,7 @@ import (
 )
 
 type controller struct {
-	network.BaseController
+	network.Controller
 	service Service
 }
 
@@ -569,7 +552,7 @@ func NewController(
 	service Service,
 ) network.Controller {
 	return &controller{
-		BaseController: network.NewBaseController("/%s", authMFunc, authorizeMFunc),
+		Controller: network.NewController("/%s", authMFunc, authorizeMFunc),
 		service:  service,
 	}
 }
@@ -579,33 +562,25 @@ func (c *controller) MountRoutes(group *gin.RouterGroup) {
 }
 
 func (c *controller) get%sHandler(ctx *gin.Context) {
-	uuidParam, err := network.ReqParams(ctx, coredto.EmptyUUID())
+	uuidParam, err := network.ReqParams[coredto.UUID](ctx)
 	if err != nil {
-		// TODO
-		// Do check https://github.com/afteracademy/goserve-example-api-server-postgres/blob/main/api/contact/controller.go
-		// to know how to handle response properly 
+		network.SendBadRequestError(ctx, err.Error(), err)
 		return
 	}
 
 	%s, err := c.service.Find%s(uuidParam.ID)
 	if err != nil {
-		// TODO
-		// Do check https://github.com/afteracademy/goserve-example-api-server-postgres/blob/main/api/contact/controller.go
-		// to know how to handle response properly 
+		network.SendBadRequestError(ctx, err.Error(), err)
 		return
 	}
 
 	data, err := utility.MapTo[dto.Info%s](%s)
 	if data == nil || err != nil {
-		// TODO
-		// Do check https://github.com/afteracademy/goserve-example-api-server-postgres/blob/main/api/contact/controller.go
-		// to know how to handle response properly 
+		network.SendBadRequestError(ctx, err.Error(), err)
 		return
 	}
 
-	// TODO
-	// Do check https://github.com/afteracademy/goserve-example-api-server-postgres/blob/main/common/payload.go
-	// to know how to handle response properly 
+	network.SendSuccessDataResponse(ctx, "success", data)
 }
 `, featureName, module, featureLower, featureLower, featureCaps, featureCaps, featureLower, featureCaps, featureCaps, featureLower)
 
