@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/afteracademy/goservegen/templates"
+	"github.com/afteracademy/goservegen/v2/templates"
 )
 
 func Generate(dir string, module string) {
@@ -26,10 +26,11 @@ func Generate(dir string, module string) {
 }
 
 func generateMongoInit(dir string) {
+	base := filepath.Base(dir)
 	d := filepath.Join(dir, ".extra", "setup")
 	templates.CreateDir(d)
 
-	initMongo := `function seed(dbName, user, password) {
+	initMongo := fmt.Sprintf(`function seed(dbName, user, password) {
   db = db.getSiblingDB(dbName);
   db.createUser({
     user: user,
@@ -38,15 +39,18 @@ func generateMongoInit(dir string) {
   });
 }
 
-seed("dev-db", "dev-db-user", "changeit");
-seed("test-db", "test-db-user", "changeit");
-`
+seed("%s-dev-db", "%s-dev-db-user", "changeit");
+seed("%s-test-db", "%s-test-db-user", "changeit");
+`, base, base, base, base)
+
 	templates.CreateFile(filepath.Join(d, "init-mongo.js"), initMongo)
 }
 
 func generateDocker(dir string) {
 	base := filepath.Base(dir)
 	docker := fmt.Sprintf(`FROM golang:`+templates.GO_VERSION+`-alpine
+
+RUN apk add --no-cache curl
 
 RUN adduser --disabled-password --gecos '' gouser
 
@@ -68,40 +72,59 @@ EXPOSE 8080
 CMD ["./build/server"]
  `, base, base, base)
 
-	compose := `services:
-  api:
+	compose := fmt.Sprintf(`services:
+  %s:
     build:
       context: .
       dockerfile: Dockerfile
-    image: api
-    container_name: api
     restart: unless-stopped
     env_file: .env
     ports:
       - '${SERVER_PORT}:8080'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - %s-network
 
   mongo:
     image: mongo:8.0.9
-    container_name: mongo
     restart: unless-stopped
     env_file: .env
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${DB_ADMIN}
-      - MONGO_INITDB_ROOT_PASSWORD=${DB_ADMIN_PWD}
-      - MONGO_INITDB_DATABASE=${DB_NAME}
     ports:
       - '${DB_PORT}:27017'
     command: mongod --bind_ip_all
     volumes:
       - ./.extra/setup/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
       - dbdata:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "-u", "${MONGO_INITDB_ROOT_USERNAME}",
+          "-p", "${MONGO_INITDB_ROOT_PASSWORD}",
+          "--authenticationDatabase", "admin",
+          "--eval", "db.runCommand({ ping: 1 }).ok"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - %s-network
 
   redis:
     image: redis:8.4.0
-    container_name: redis
     restart: unless-stopped
     env_file: .env
     ports:
@@ -109,12 +132,30 @@ CMD ["./build/server"]
     command: redis-server --bind localhost --bind 0.0.0.0 --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
     volumes:
       - cache:/data/cache
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a", "${REDIS_PASSWORD}",
+          "ping"
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - %s-network
+
+networks:
+  %s-network:
+    driver: bridge
 
 volumes:
   dbdata:
   cache:
     driver: local
-`
+`, base, base, base, base, base)
 
 	ignore := `
 # Binaries
@@ -595,23 +636,29 @@ func (c *controller) get%sHandler(ctx *gin.Context) {
 }
 
 func generateEnvs(dir string) {
-	env := `# debug, release, test
+	base := filepath.Base(dir)
+	env := fmt.Sprintf(`# debug, release, test
 GO_MODE=debug
 
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
 
+# DB_HOST=localhost
 DB_HOST=mongo
 DB_PORT=27017
-DB_NAME=dev-db
-DB_USER=dev-db-user
+DB_NAME=%s-dev-db
+DB_USER=%s-dev-db-user
 DB_USER_PWD=changeit
 DB_MIN_POOL_SIZE=2
 DB_MAX_POOL_SIZE=5
 DB_QUERY_TIMEOUT_SEC=60
-DB_ADMIN=admin
-DB_ADMIN_PWD=changeit
 
+# MongoDB Admin Credentials
+MONGO_INITDB_ROOT_USERNAME=admin
+MONGO_INITDB_ROOT_PASSWORD=changeit
+MONGO_INITDB_DATABASE=admin
+
+# REDIS_HOST=localhost
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=changeit
@@ -620,20 +667,21 @@ REDIS_PASSWORD=changeit
 ACCESS_TOKEN_VALIDITY_SEC=172800
 # 7 DAYS: 604800 Sec
 REFRESH_TOKEN_VALIDITY_SEC=604800
-TOKEN_ISSUER=api.goserve.afteracademy.com
-TOKEN_AUDIENCE=goserve.afteracademy.com
+TOKEN_ISSUER=api.%s.com
+TOKEN_AUDIENCE=goserve.%s.com
 
 RSA_PRIVATE_KEY_PATH="keys/private.pem"
 RSA_PUBLIC_KEY_PATH="keys/public.pem"
-`
+`, base, base, base, base)
 
-	testEnv := `# debug, release, test
+	testEnv := fmt.Sprintf(`# debug, release, test
 GO_MODE=test
 
+# DB_HOST=localhost
 DB_HOST=mongo
 DB_PORT=27017
-DB_NAME=test-db
-DB_USER=test-db-user
+DB_NAME=%s-test-db
+DB_USER=%s-test-db-user
 DB_USER_PWD=changeit
 DB_MIN_POOL_SIZE=2
 DB_MAX_POOL_SIZE=5
@@ -641,6 +689,7 @@ DB_QUERY_TIMEOUT_SEC=60
 DB_ADMIN=admin
 DB_ADMIN_PWD=changeit
 
+# REDIS_HOST=localhost
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=changeit
@@ -649,12 +698,12 @@ REDIS_PASSWORD=changeit
 ACCESS_TOKEN_VALIDITY_SEC=172800
 # 7 DAYS: 604800 Sec
 REFRESH_TOKEN_VALIDITY_SEC=604800
-TOKEN_ISSUER=api.goserve.afteracademy.com
-TOKEN_AUDIENCE=goserve.afteracademy.com
+TOKEN_ISSUER=api.%s.com
+TOKEN_AUDIENCE=goserve.%s.com
 
 RSA_PRIVATE_KEY_PATH="../keys/private.pem"
 RSA_PUBLIC_KEY_PATH="../keys/public.pem"
-`
+`, base, base, base, base)
 
 	templates.CreateFile(filepath.Join(dir, ".env"), env)
 	templates.CreateFile(filepath.Join(dir, ".test.env"), testEnv)

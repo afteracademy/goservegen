@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/afteracademy/goservegen/templates/mongo"
-	"github.com/afteracademy/goservegen/templates/postgres"
+	"github.com/afteracademy/goservegen/v2/templates/mongo"
+	"github.com/afteracademy/goservegen/v2/templates/postgres"
 )
 
 func main() {

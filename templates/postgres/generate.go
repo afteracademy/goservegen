@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/afteracademy/goservegen/templates"
+	"github.com/afteracademy/goservegen/v2/templates"
 )
 
 func Generate(dir string, module string) {
@@ -32,19 +32,20 @@ func generateMigrations(dir string) {
 }
 
 func generatePostgresInit(dir string) {
+	base := filepath.Base(dir)
 	d := filepath.Join(dir, ".extra", "setup")
 	templates.CreateDir(d)
 
 	pgseed := `-- write your seed sql queries here to populate initial schema in the database`
 
-	initTestDb := `-- Create test user
-CREATE USER test_db_user WITH PASSWORD 'changeit';
+	initTestDb := fmt.Sprintf(`-- Create test user
+CREATE USER %s_test_db_user WITH PASSWORD 'changeit';
 
 -- Create test database
-CREATE DATABASE test_db OWNER test_db_user;
+CREATE DATABASE %s_test_db OWNER %s_test_db_user;
 
-GRANT ALL PRIVILEGES ON DATABASE test_db TO test_db_user;
-`
+GRANT ALL PRIVILEGES ON DATABASE %s_test_db TO %s_test_db_user;
+`, base, base, base, base, base)
 
 	templates.CreateFile(filepath.Join(d, "pgseed.sql"), pgseed)
 	templates.CreateFile(filepath.Join(d, "init-test-db.sql"), initTestDb)
@@ -53,6 +54,8 @@ GRANT ALL PRIVILEGES ON DATABASE test_db TO test_db_user;
 func generateDocker(dir string) {
 	base := filepath.Base(dir)
 	docker := fmt.Sprintf(`FROM golang:`+templates.GO_VERSION+`-alpine
+
+RUN apk add --no-cache curl
 
 RUN adduser --disabled-password --gecos '' gouser
 
@@ -74,16 +77,23 @@ EXPOSE 8080
 CMD ["./build/server"]
  `, base, base, base)
 
-	compose := `services:
-  goserver:
+	compose := fmt.Sprintf(`services:
+  %s:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: goserve_example_api_server_postgres
     restart: unless-stopped
     env_file: .env
     ports:
       - '${SERVER_PORT}:${SERVER_PORT}'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - %s-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,10 +104,6 @@ CMD ["./build/server"]
     image: postgres:18.1
     restart: unless-stopped
     env_file: .env
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_USER_PWD}
     ports:
       - '${DB_PORT}:5432'
     volumes:
@@ -105,11 +111,18 @@ CMD ["./build/server"]
       # optional pg seed scripts
       - ./.extra/setup/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
       - ./.extra/setup/pgseed.sql:/docker-entrypoint-initdb.d/pgseed.sql:ro
+    networks:
+      - %s-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$DB_NAME"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -h localhost -p 5432 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   redis:
     image: redis:8.4.0
@@ -120,31 +133,45 @@ CMD ["./build/server"]
     command: redis-server --bind 0.0.0.0 --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}
     volumes:
       - cache:/data/cache
+    networks:
+      - %s-network
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
-      interval: 5s
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a", "${REDIS_PASSWORD}",
+          "ping"
+        ]
+      interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
 
   migrate:
     image: migrate/migrate
-    env_file: .env
+    env_file: .test.env
     volumes:
       - ./migrations:/migrations
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - %s-network
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      [
-        "-path", "/migrations",
-        "-database", "postgres://${TEST_DB_USER}:${TEST_DB_USER_PWD}@postgres:5432/${TEST_DB_NAME}?sslmode=disable",
-        "up"
-      ]
+      - |
+        migrate -path /migrations -database "postgres://$${DB_USER}:$${DB_USER_PWD}@postgres:5432/$${DB_NAME}?sslmode=disable" up
+
+networks:
+  %s-network:
+    driver: bridge
+
 volumes:
   dbdata:
   cache:
     driver: local
-`
+`, base, base, base, base, base, base)
 
 	ignore := `
 # Binaries
@@ -588,27 +615,29 @@ func (c *controller) get%sHandler(ctx *gin.Context) {
 }
 
 func generateEnvs(dir string) {
-	env := `# debug, release, test
+	base := filepath.Base(dir)
+	env := fmt.Sprintf(`# debug, release, test
 GO_MODE=debug
 
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
 
+# DB_HOST=localhost
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=dev_db
-DB_USER=dev_db_user
+DB_NAME=%s_dev_db
+DB_USER=%s_dev_db_user
 DB_USER_PWD=changeit
 DB_MIN_POOL_SIZE=2
 DB_MAX_POOL_SIZE=5
 DB_QUERY_TIMEOUT_SEC=60
 
-# To run migration on test database since 
-# docker load only from .env file
-TEST_DB_NAME=test_db
-TEST_DB_USER=test_db_user
-TEST_DB_USER_PWD=changeit
+# PostgreSQL Docker container variables
+POSTGRES_DB=%s_dev_db
+POSTGRES_USER=%s_dev_db_user
+POSTGRES_PASSWORD=changeit
 
+# REDIS_HOST=localhost
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=changeit
@@ -617,28 +646,30 @@ REDIS_PASSWORD=changeit
 ACCESS_TOKEN_VALIDITY_SEC=172800
 # 7 DAYS: 604800 Sec
 REFRESH_TOKEN_VALIDITY_SEC=604800
-TOKEN_ISSUER=api.goserve.afteracademy.com
-TOKEN_AUDIENCE=goserve.afteracademy.com
+TOKEN_ISSUER=api.%s.com
+TOKEN_AUDIENCE=%s.com
 
 RSA_PRIVATE_KEY_PATH="keys/private.pem"
 RSA_PUBLIC_KEY_PATH="keys/public.pem"
-`
+`, base, base, base, base, base, base)
 
-	testEnv := `# debug, release, test
+	testEnv := fmt.Sprintf(`# debug, release, test
 GO_MODE=debug
 
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8081
 
+# DB_HOST=localhost
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=test_db
-DB_USER=test_db_user
+DB_NAME=%s_test_db
+DB_USER=%s_test_db_user
 DB_USER_PWD=changeit
 DB_MIN_POOL_SIZE=2
 DB_MAX_POOL_SIZE=5
 DB_QUERY_TIMEOUT_SEC=60
 
+# REDIS_HOST=localhost
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=changeit
@@ -647,13 +678,13 @@ REDIS_PASSWORD=changeit
 ACCESS_TOKEN_VALIDITY_SEC=172800
 # 7 DAYS: 604800 Sec
 REFRESH_TOKEN_VALIDITY_SEC=604800
-TOKEN_ISSUER=api.goserve.afteracademy.com
-TOKEN_AUDIENCE=goserve.afteracademy.com
+TOKEN_ISSUER=api.%s.com
+TOKEN_AUDIENCE=%s.com
 
 # test run from the test directory one level below the src
 RSA_PRIVATE_KEY_PATH="../keys/private.pem"
 RSA_PUBLIC_KEY_PATH="../keys/public.pem"
-`
+`, base, base, base, base)
 
 	templates.CreateFile(filepath.Join(dir, ".env"), env)
 	templates.CreateFile(filepath.Join(dir, ".test.env"), testEnv)

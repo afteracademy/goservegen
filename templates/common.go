@@ -13,6 +13,7 @@ import (
 )
 
 const GO_VERSION = "1.25.6"
+const GOSERVE_VERSION = "v2.1.2"
 
 func CreateDir(dir string) {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -31,6 +32,9 @@ func GenerateGoMod(module, dir string) {
 
 go ` + GO_VERSION + `
 
+require (
+	github.com/afteracademy/goserve/v2 ` + GOSERVE_VERSION + `
+)
 `
 
 	CreateFile(filepath.Join(dir, "go.mod"), fmt.Sprintf(goMod, module))
