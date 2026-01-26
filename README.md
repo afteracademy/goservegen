@@ -18,28 +18,29 @@ Project generator for go backend architecture using goserve framework
 1. [Starter Project Mongo Zip](https://github.com/afteracademy/goservegen/raw/main/starter-project-mongo.zip)
 2. [Starter Project Postgres Zip](https://github.com/afteracademy/goservegen/raw/main/starter-project-postgres.zip)	
 
-### B. Or You can use goservegen binary to generate the project
-1. Download the goservegen binary for your operating system from the goservegen latest release: [github.com/afteracademy/goservegen/releases](https://github.com/afteracademy/goservegen/releases)
+### B. Or You can use goservegen directly to generate the project
+Install go language in your system if not already installed. [Download Go](https://go.dev/dl/)
 
-2. Expand the compressed file (Example: Apple Mac M2: goservegen_Darwin_arm64.tar.gz)
-
-3. Run the binary 
+### goservegen [project directory path] [project module] [Database Type - mongo/postgres]
 ```bash
-cd ~/Downloads/goservegen_Darwin_arm64
+# Postgres Project
+go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my-project github.com/yourusername/example postgres
 
-# ./goservegen [project directory path] [project module] [Database Type - mongo/postgres]
-./goservegen ~/Downloads/example github.com/yourusername/example postgres
+# Mongo Project
+go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my-project github.com/yourusername/example mongo
 ```
-> Note: `./goservegen ~/Downloads/example github.com/yourusername/example` will generate project named `example` located at `~/Downloads` and module `github.com/yourusername/example`
+
+> Note: It will generate project named `my-project` located at `~/Downloads` and module `github.com/yourusername/example`
 
 4. Open the generated project in your IDE/editor of choice
 
 5. Have fun developing your REST API server!
 
-## Generated Postgres Project
+## Generated Project Structure
 ```
 .
 ├── Dockerfile
+├── docker-compose.yml
 ├── api
 │   └── message
 │       ├── controller.go
@@ -68,59 +69,33 @@ cd ~/Downloads/goservegen_Darwin_arm64
     └── file.go
 ```
 
-## Generated Mongo Project
-```
-.
-├── Dockerfile
-├── api
-│   └── message
-│       ├── controller.go
-│       ├── dto
-│       │   └── create_message.go
-│       ├── model
-│       │   └── message.go
-│       └── service.go
-├── cmd
-│   └── main.go
-├── config
-│   └── env.go
-├── docker-compose.yml
-├── go.mod
-├── go.sum
-├── keys
-│   ├── private.pem
-│   └── public.pem
-├── startup
-│   ├── indexes.go
-│   ├── module.go
-│   ├── server.go
-│   └── testserver.go
-└── utils
-    ├── convertor.go
-    └── file.go
-```
-
 ## Run the project using Docker
 ```bash
 docker compose up --build
 ```
 
-Response
+## Healthy Check
+```bash
+# Run on terminal
+curl http://localhost:8080/health
 ```
+
+Response
+```json
 {
-    "code": "10000",
-    "status": 200,
-    "message": "pong!"
+  "code": "10000",
+  "status": 200,
+  "message": "success",
+  "data": {
+    "timestamp": "2026-01-25T06:45:17.228713387Z",
+    "status": "OK"
+  }
 }
 ```
+
 
 ## Working on the project
 You can read about using this framework here [github.com/afteracademy/goserve](https://github.com/afteracademy/goserve)
 
 ## Read the Article to understand this project
 [How to Architect Good Go Backend REST API Services](https://afteracademy.com/article/how-to-architect-good-go-backend-rest-api-services)
-
-## Troubleshoot
-Sometimes your operating system will block the binary from execution, you will have to provide permission to run it. 
-
-> In Mac you have to go System Settings > Privacy & Security > Allow goservegen
