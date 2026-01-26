@@ -24,13 +24,13 @@ Install go language in your system if not already installed. [Download Go](https
 ### goservegen [project directory path] [project module] [Database Type - mongo/postgres]
 ```bash
 # Postgres Project
-go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my-project github.com/yourusername/example postgres
+go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my_project github.com/yourusername/example postgres
 
 # Mongo Project
-go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my-project github.com/yourusername/example mongo
+go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my_project github.com/yourusername/example mongo
 ```
 
-> Note: It will generate project named `my-project` located at `~/Downloads` and module `github.com/yourusername/example`
+> Note: It will generate project named `my_project` located at `~/Downloads` and module `github.com/yourusername/example`
 
 4. Open the generated project in your IDE/editor of choice
 
