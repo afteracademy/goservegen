@@ -22,19 +22,49 @@ Project generator for go backend architecture using goserve framework
 Install go language in your system if not already installed. [Download Go](https://go.dev/dl/)
 
 ### goservegen [project directory path] [project module] [Database Type - mongo/postgres]
+Postgres Project
 ```bash
-# Postgres Project
 go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my_project github.com/yourusername/example postgres
+```
 
-# Mongo Project
+Mongo Project
+```bash
 go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my_project github.com/yourusername/example mongo
 ```
 
 > Note: It will generate project named `my_project` located at `~/Downloads` and module `github.com/yourusername/example`
 
-4. Open the generated project in your IDE/editor of choice
+## Run the project using Docker
+```bash
+# Go to the project directory
+cd ~/Downloads/my_project	
+```
 
-5. Have fun developing your REST API server!
+```bash
+docker compose up --build
+```
+
+## Healthy Check
+```bash
+# Run on terminal
+curl http://localhost:8080/health
+```
+
+Response
+```json
+{
+  "code": "10000",
+  "status": 200,
+  "message": "success",
+  "data": {
+    "timestamp": "2026-01-25T06:45:17.228713387Z",
+    "status": "OK"
+  }
+}
+```
+
+### Now Open the generated project in your IDE/editor of choice
+> Have fun developing your REST API server!
 
 ## Generated Project Structure
 ```
@@ -72,31 +102,6 @@ go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my_project githu
     ├── convertor.go
     └── file.go
 ```
-
-## Run the project using Docker
-```bash
-docker compose up --build
-```
-
-## Healthy Check
-```bash
-# Run on terminal
-curl http://localhost:8080/health
-```
-
-Response
-```json
-{
-  "code": "10000",
-  "status": 200,
-  "message": "success",
-  "data": {
-    "timestamp": "2026-01-25T06:45:17.228713387Z",
-    "status": "OK"
-  }
-}
-```
-
 
 ## Working on the project
 You can read about using this framework here [github.com/afteracademy/goserve](https://github.com/afteracademy/goserve)
