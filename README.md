@@ -40,8 +40,12 @@ go run github.com/afteracademy/goservegen/v2@latest ~/Downloads/my-project githu
 ```
 .
 ├── Dockerfile
-├── docker-compose.yml
 ├── api
+│   ├── health
+│   │   ├── controller.go
+│   │   ├── dto
+│   │   │   └── health_check.go
+│   │   └── service.go
 │   └── message
 │       ├── controller.go
 │       ├── dto
