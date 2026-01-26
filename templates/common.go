@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const GO_VERSION = "1.25.6"
@@ -283,4 +284,11 @@ func ExecuteTidy(dir string) {
 	if err != nil {
 		log.Fatalf("Command execution failed: %v\nOutput: %s", err, string(output))
 	}
+}
+
+func CapitalizeFirstLetter(str string) string {
+	if len(str) == 0 {
+		return str
+	}
+	return strings.ToUpper(string(str[0])) + str[1:]
 }

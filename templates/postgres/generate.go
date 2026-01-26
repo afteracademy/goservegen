@@ -246,6 +246,7 @@ import (
 	"github.com/afteracademy/goserve/v2/postgres"
 	"github.com/afteracademy/goserve/v2/network"
 	"github.com/afteracademy/goserve/v2/redis"
+	"%s/api/health"
 	"%s/api/%s"
 	"%s/config"
 )
@@ -257,10 +258,16 @@ type module struct {
 	Env     *config.Env
 	DB      postgres.Database
 	Store   redis.Store
+	HealthService health.Service
 }
 
 func (m *module) GetInstance() *module {
 	return m
+}
+
+// OpenControllers are controllers that do not require api key authentication
+func (m *module) OpenControllers() []network.Controller {
+	return []network.Controller{health.NewController(m.HealthService)}
 }
 
 func (m *module) Controllers() []network.Controller {
@@ -287,14 +294,16 @@ func (m *module) AuthorizationProvider() network.AuthorizationProvider {
 }
 
 func NewModule(context context.Context, env *config.Env, db postgres.Database, store redis.Store) Module {
+	healthService := health.NewService()
 	return &module{
 		Context: context,
 		Env:     env,
 		DB:      db,
 		Store:   store,
+		HealthService: healthService,
 	}
 }
-`, module, feature, module, feature, feature)
+`, module, module, feature, module, feature, feature)
 
 	server := fmt.Sprintf(`package startup
 
@@ -348,6 +357,7 @@ func create(env *config.Env) (network.Router, Module, Shutdown) {
 
 	router := network.NewRouter(env.GoMode)
 	router.RegisterValidationParsers(network.CustomTagNameFunc())
+	router.LoadControllers(module.GetInstance().OpenControllers())
 	router.LoadRootMiddlewares(module.RootMiddlewares())
 	router.LoadControllers(module.Controllers())
 
@@ -392,13 +402,7 @@ func generateApi(module, dir, feature string) {
 	d := filepath.Join(dir, "api")
 	templates.CreateDir(d)
 	generateApiFeature(module, d, feature)
-}
-
-func capitalizeFirstLetter(str string) string {
-	if len(str) == 0 {
-		return str
-	}
-	return strings.ToUpper(string(str[0])) + str[1:]
+	templates.GenerateHealthApi(module, d)
 }
 
 func generateApiFeature(module, dir, feature string) error {
@@ -431,7 +435,7 @@ func generateDto(featureDir, featureName string) error {
 	}
 
 	featureLower := strings.ToLower(featureName)
-	featureCaps := capitalizeFirstLetter(featureName)
+	featureCaps := templates.CapitalizeFirstLetter(featureName)
 	dtoPath := filepath.Join(featureDir, fmt.Sprintf("dto/create_%s.go", featureLower))
 
 	tStr := `package dto
@@ -460,7 +464,7 @@ func generateModel(featureDir, featureName string) error {
 	}
 
 	featureLower := strings.ToLower(featureName)
-	featureCaps := capitalizeFirstLetter(featureName)
+	featureCaps := templates.CapitalizeFirstLetter(featureName)
 	modelPath := filepath.Join(featureDir, fmt.Sprintf("model/%s.go", featureLower))
 
 	tStr := `package model
@@ -486,7 +490,7 @@ type %s struct {
 
 func generateService(module, featureDir, featureName string) error {
 	featureLower := strings.ToLower(featureName)
-	featureCaps := capitalizeFirstLetter(featureName)
+	featureCaps := templates.CapitalizeFirstLetter(featureName)
 	servicePath := filepath.Join(featureDir, fmt.Sprintf("%sservice.go", ""))
 
 	template := fmt.Sprintf(`package %s
@@ -555,7 +559,7 @@ func (s *service) Find%s(id uuid.UUID) (*model.%s, error) {
 
 func generateController(module, featureDir, featureName string) error {
 	featureLower := strings.ToLower(featureName)
-	featureCaps := capitalizeFirstLetter(featureName)
+	featureCaps := templates.CapitalizeFirstLetter(featureName)
 	controllerPath := filepath.Join(featureDir, fmt.Sprintf("%scontroller.go", ""))
 
 	template := fmt.Sprintf(`package %s
